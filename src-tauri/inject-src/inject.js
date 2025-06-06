@@ -89,6 +89,10 @@ tauri_api.event.listen('control_player', (event) => {
     }
 });
 
+tauri_api.event.listen('status_update_req', (_) => {
+    update_state();
+});
+
 ytplayerapi.addEventListener("onStateChange", async (event) => {
     last_duration = ytplayerapi.getCurrentTime();
     update_state(event.state);

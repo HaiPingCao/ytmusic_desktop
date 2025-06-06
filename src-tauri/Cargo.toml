@@ -11,14 +11,15 @@ edition = "2021"
 tauri-build = { version = "1", features = [] }
 
 [dependencies]
-tauri = { version = "1", features = ["system-tray", "shell-open", "devtools"] }
+tauri = { version = "1", features = [
+    "shell-open",
+    "system-tray",
+    "devtools",
+    "custom-protocol",
+] }
 serde = { version = "1", features = ["derive"] }
 tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 serde_json = "1"
-discord-rich-presence = { git = "https://github.com/thedtvn/discord-rich-presence" }
+discord-rich-presence = { git = "https://github.com/vionya/discord-rich-presence" }
 tokio = { version = "1.40.0", features = ["sync"] }
-
-[features]
-# This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
-custom-protocol = ["tauri/custom-protocol"]

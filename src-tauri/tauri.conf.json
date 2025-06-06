@@ -2,8 +2,8 @@
   "$schema": "https://schema.tauri.app/config/1",
   "build": {
     "withGlobalTauri": true,
-    "devPath": "../src",
-    "distDir": "../src"
+    "devPath": "./inject-src",
+    "distDir": "./inject-src"
   },
   "package": {
     "productName": "Youtube Music",
@@ -23,7 +23,7 @@
         "label": "main",
         "url": "https://music.youtube.com/",
         "theme": "Dark",
-        "additionalBrowserArgs": "--disable-web-security"
+        "additionalBrowserArgs": "--disable-web-security --force-dark-mode"
       }
     ],
     "security": {
