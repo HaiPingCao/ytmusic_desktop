@@ -1,11 +1,12 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use tauri::{
+    http::{ResponseBuilder, Uri},
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
 };
 use tokio::sync::Mutex;
 
-use std::{sync::Arc, time::SystemTime};
+use std::{str::FromStr, sync::Arc, time::SystemTime};
 
 use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 
@@ -161,6 +162,59 @@ fn update_state(app: tauri::AppHandle, data: PlayerState) {
     update_status(dipc_client.clone(), data.clone());
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+struct PluginMetadata {
+    pub name: String,
+    pub export: Vec<String>,
+    pub main_dir: String,
+}
+
+#[tauri::command]
+fn get_plugin_list() -> Vec<String> {
+    let working_dir = get_working_dir();
+    let plugin_dir = working_dir.join("plugins");
+    if !plugin_dir.exists() {
+        std::fs::create_dir_all(&plugin_dir).unwrap();
+        return vec![];
+    }
+    let mut plugins = vec![];
+    for entry in std::fs::read_dir(plugin_dir).unwrap() {
+        let entry = entry.unwrap();
+        if !entry.file_type().unwrap().is_dir() {
+            println!("Skipping non-directory entry: {:?}", entry.path());
+            continue;
+        }
+        let dir_path = entry.path();
+        let metadata_path = dir_path.join("metadata.json");
+        if !metadata_path.exists() {
+            println!("Metadata file does not exist for plugin: {:?}", dir_path);
+            continue;
+        }
+        let metadata: PluginMetadata =
+            serde_json::from_str(&std::fs::read_to_string(metadata_path).unwrap()).unwrap();
+        let export = metadata
+            .export
+            .iter()
+            .map(|s| {
+                format!(
+                    "{}/{}/{}",
+                    entry.file_name().to_string_lossy(),
+                    metadata.main_dir,
+                    s.trim_start_matches('/')
+                )
+            })
+            .collect::<Vec<String>>();
+
+        plugins.extend(export.clone());
+        println!(
+            "Found plugin: {} with {} files",
+            metadata.name,
+            export.len()
+        );
+    }
+    plugins
+}
+
 #[cfg(dev)]
 fn get_working_dir() -> std::path::PathBuf {
     let mut path = std::env::current_dir().unwrap();
@@ -181,9 +235,55 @@ fn main() {
     let drpc_client = Arc::new(Mutex::new(DiscordIpcClient::new("1049275932239728672")));
     let drpc_client_th = drpc_client.clone();
     tauri::Builder::default()
-        .register_uri_scheme_protocol("inject", |_app, request| {
-            println!("Injecting script: {:?}", request.uri());
-            tauri::http::ResponseBuilder::new().body(Vec::new())
+        .register_uri_scheme_protocol("plugin", |_app, request| {
+            let uri = Uri::from_str(request.uri()).unwrap();
+            let path = uri.path().trim_start_matches('/');
+            let plugin_dir = get_working_dir().join("plugins");
+            if !plugin_dir.exists() {
+                return ResponseBuilder::new().status(404).body("Not Found".into());
+            }
+            if path.is_empty() {
+                return ResponseBuilder::new().status(404).body("Not Found".into());
+            }
+            let path_parts: Vec<&str> = path.split(|c| c == '/' || c == '\\').collect();
+
+            let safe_parts: Vec<&str> = path_parts
+                .iter()
+                .filter(|&part| *part != ".." && *part != "." && !part.is_empty())
+                .cloned()
+                .collect();
+
+            if safe_parts.is_empty() || safe_parts.len() != path_parts.len() {
+                return ResponseBuilder::new()
+                    .status(403)
+                    .body("Forbidden: Path traversal attempt detected".into());
+            }
+
+            let safe_path = safe_parts.join(std::path::MAIN_SEPARATOR_STR);
+            let plugin_path = plugin_dir.join(safe_path);
+
+            if !plugin_path.starts_with(&plugin_dir) {
+                return ResponseBuilder::new()
+                    .status(403)
+                    .body("Forbidden: Path outside plugin directory".into());
+            }
+
+            if !plugin_path.exists() {
+                return ResponseBuilder::new().status(404).body("Not Found".into());
+            }
+
+            let content_type = if path.ends_with(".js") {
+                "application/javascript"
+            } else if path.ends_with(".css") {
+                "text/css"
+            } else {
+                "text/plain"
+            };
+            let content = std::fs::read(&plugin_path).unwrap_or_else(|_| "File not found".into());
+            ResponseBuilder::new()
+                .status(200)
+                .header("Content-Type", content_type)
+                .body(content)
         })
         .setup(|app| {
             let app_handle = app.handle();
@@ -228,7 +328,7 @@ fn main() {
             ";
             window.eval(&js_script).unwrap();
         })
-        .invoke_handler(tauri::generate_handler![update_state])
+        .invoke_handler(tauri::generate_handler![update_state, get_plugin_list])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
