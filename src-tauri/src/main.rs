@@ -174,7 +174,7 @@ fn get_plugin_list() -> Vec<String> {
     let working_dir = get_working_dir();
     let plugin_dir = working_dir.join("plugins");
     if !plugin_dir.exists() {
-        std::fs::create_dir_all(&plugin_dir).unwrap();
+        let _ = std::fs::create_dir_all(&plugin_dir);
         return vec![];
     }
     let mut plugins = vec![];
@@ -228,7 +228,7 @@ fn get_working_dir() -> std::path::PathBuf {
 #[cfg(not(dev))]
 fn get_working_dir() -> std::path::PathBuf {
     let path = std::env::current_exe().unwrap();
-    path
+    path.join("..")
 }
 
 fn main() {
