@@ -6,3 +6,12 @@ window.addEventListener('load', () => {
     import("./plugin_inject.js");
 }, { once: true });
 
+window.addEventListener('keydown', async (event) => {                                 
+    console.log("Key pressed:", event.key);
+    if (event.key === 'F11') {
+        let window_tauri = await window.tauri_api.window.getCurrent();
+        let isFullscreen = await window_tauri.isFullscreen();
+        window_tauri.setFullscreen(!isFullscreen);
+    }
+});
+

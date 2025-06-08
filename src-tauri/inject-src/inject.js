@@ -69,7 +69,6 @@ async function update_state(event_id_input) {
         }
     } else return;
     if (JSON.stringify(last_send) == JSON.stringify(data) && event_id_input != undefined) return
-    console.log("update_state", data, event_id_input != undefined);
     await tauri_api.invoke("update_state", { data: data });
     last_send = data;
     last_update = Date.now();
@@ -105,7 +104,6 @@ setInterval(() => {
 
 ytplayerapi.addEventListener("onVideoProgress", async (event) => {
     let skip_time = event - last_duration;
-    console.log("skip_time", skip_time);
     if (skip_time > 1 || skip_time < -1 || skip_time == 0) {
         update_state(ytplayerapi.getPlayerState())
     }
