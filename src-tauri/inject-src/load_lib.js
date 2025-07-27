@@ -9,7 +9,7 @@ window.addEventListener('load', () => {
 
 document.addEventListener('fullscreenchange', async () => {
     let window_tauri = await window.tauri_api.window.getCurrent();
-    window_tauri.setFullscreen(!Boolean(document.fullscreenElement));
+    window_tauri.setFullscreen(Boolean(document.fullscreenElement));
 });
 
 
