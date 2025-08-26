@@ -9,10 +9,11 @@ window.addEventListener('load', () => {
 
 let wakeLock = null;
 
-document.addEventListener('fullscreenchange', async () => {
+async function requestWakeLock() {
     let window_tauri = await window.tauri_api.window.getCurrent();
-    window_tauri.setFullscreen(Boolean(document.fullscreenElement));
-    if (document.fullscreenElement) {
+    const isFullscreen = await window_tauri.isFullscreen();
+    console.log("Requesting wake lock...", wakeLock, isFullscreen);
+    if (isFullscreen) {
         try {
             wakeLock = await navigator.wakeLock.request('screen');
         } catch (err) {
@@ -24,6 +25,12 @@ document.addEventListener('fullscreenchange', async () => {
             wakeLock = null;
         }
     }
+}
+
+document.addEventListener('fullscreenchange', async () => {
+    let window_tauri = await window.tauri_api.window.getCurrent();
+    window_tauri.setFullscreen(Boolean(document.fullscreenElement));
+    await requestWakeLock();
 });
 
 
@@ -32,6 +39,8 @@ window.addEventListener('keydown', async (event) => {
         let window_tauri = await window.tauri_api.window.getCurrent();
         let isFullscreen = await window_tauri.isFullscreen();
         window_tauri.setFullscreen(!isFullscreen);
+        event.preventDefault();
+        await requestWakeLock();
     }
 });
 
