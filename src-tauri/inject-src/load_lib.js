@@ -7,9 +7,23 @@ window.addEventListener('load', () => {
     import("./plugin_inject.js");
 }, {once: true});
 
+let wakeLock = null;
+
 document.addEventListener('fullscreenchange', async () => {
     let window_tauri = await window.tauri_api.window.getCurrent();
     window_tauri.setFullscreen(Boolean(document.fullscreenElement));
+    if (document.fullscreenElement) {
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+        } catch (err) {
+            console.error(`${err.name}, ${err.message}`);
+        }
+    } else {
+        if (wakeLock !== null) {
+            await wakeLock.release();
+            wakeLock = null;
+        }
+    }
 });
 
 
